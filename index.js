@@ -2,8 +2,11 @@ const express = require('express');
 const axios = require('axios');
 const cheerio = require('cheerio');
 const cors = require('cors');
+require("dotenv").config();
+const mongoose = require("mongoose");
 
 const app = express();
+app.use(express.json());
 
 // Enable CORS
 app.use(cors());
@@ -57,7 +60,55 @@ app.get('/profile/:username', async (req, res) => {
   }
 });
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
+
+
+
+const ratingSchema = new mongoose.Schema({
+  rating: { type: Number, required: true },
+  username: { type: String, required: true },
+  email: { type: String, required: true },
 });
+
+const Rating = mongoose.model("Rating", ratingSchema);
+
+
+
+
+
+app.get("/api/ratings", async (req, res) => {
+  try {
+    const ratings = await Rating.find().sort({ _id: -1 }).limit(5);
+    res.json(ratings);
+  } catch (error) {
+    res.status(500).json({ message: "Failed to fetch ratings" });
+  }
+});
+
+app.post("/api/ratings", async (req, res) => {
+  const { rating, username, email } = req.body;
+
+  try {
+    const newRating = new Rating({ rating, username, email });
+    await newRating.save();
+    res.status(201).json({ message: "Rating submitted successfully" });
+  } catch (error) {
+    res.status(500).json({ message: "Failed to submit rating" });
+  }
+});
+
+const PORT = process.env.PORT || 3000;
+
+// Connect to MongoDB
+mongoose.connect(process.env.MONGODB_CONNECTION_STRING, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+})
+  .then(() => {
+    console.log("Connected to MongoDB");
+    app.listen(PORT, () => {
+      console.log(`Server is running on port ${PORT}`);
+    });
+  })
+  .catch((error) => {
+    console.error("Failed to connect to MongoDB:", error);
+  });
